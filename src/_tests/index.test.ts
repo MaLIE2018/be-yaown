@@ -4,7 +4,7 @@ import app from "../index";
 import dotenv from "dotenv";
 
 dotenv.config();
-// const request = supertest(app);
+const request = supertest(app);
 
 describe("test environment", () => {
   beforeAll((done) => {
@@ -18,6 +18,13 @@ describe("test environment", () => {
 
   it("1) should be that true is true", () => {
     expect(true).toBe(true);
+  });
+
+  it("2) User can register", async () => {
+    const response = await request
+      .post("/user/register")
+      .send({ email: "test@example.com" });
+    expect(response.status).toBe(201);
   });
 
   afterAll((done) => {
