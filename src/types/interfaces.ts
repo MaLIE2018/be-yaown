@@ -18,4 +18,5 @@ export interface User {
   verified: boolean;
   save: Function;
   googleId: string;
+  verifyToken: string;
 }

@@ -4,6 +4,7 @@ import route from "./services";
 import createHttpError from "http-errors";
 import errorHandlers from "./lib/errorHandler";
 import mongoose from "mongoose";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
@@ -16,26 +17,31 @@ const corsOptions = {
     if (origins.includes(origin)) {
       next(null, true);
     } else {
-      console.log("origin403:", origin);
       next(createHttpError(403, { m: "Check your cors settings!" }));
     }
   },
-  credentials: true,
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/api/v1", route);
 app.use(errorHandlers);
 
-if (!process.env.MDB_URL) throw new Error("MDB_URL not	set!");
+if (!process.env.MDB_URL) throw new Error("MDB_URL not set!");
 
-mongoose.connect(process.env.MDB_URL, {}).then(() => {
-  console.log("mongoose connected");
+if (process.env.NODE_ENV !== "test") {
+  mongoose.connect(process.env.MDB_URL, {}).then(() => {
+    console.log("mongoose connected");
+    app.listen(PORT, () => {
+      console.table({ "Server running on port ": PORT });
+    });
+  });
+} else {
   app.listen(PORT, () => {
     console.table({ "Server running on port ": PORT });
   });
-});
+}
 
 export default app;

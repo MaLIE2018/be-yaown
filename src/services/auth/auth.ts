@@ -1,34 +1,53 @@
 import express, { CookieOptions } from "express";
 import UserModel from "../user/userSchema";
 import createError from "http-errors";
-import { basicAuthMiddleware, JWTMiddleWare } from "../../lib/auth/auth";
+import crypto from "crypto";
+import {
+  basicAuthMiddleware,
+  JWTMiddleWare,
+  refreshTokenMiddleWare,
+} from "../../lib/auth/auth";
 import { JWTAuthenticate, refreshTokens } from "../../lib/auth/tools";
 import passport from "passport";
+import atob from "atob";
+import { sendVerifyLink } from "../../lib/email";
 
 const authRouter = express.Router();
 
 const cookieOptions: CookieOptions =
   process.env.NODE_ENV === "development"
     ? { httpOnly: true }
-    : { httpOnly: true, sameSite: "none", secure: true };
+    : {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+        expires: new Date(Date.now() + 9000000),
+      };
 
 authRouter.post("/register", async (req, res, next) => {
   try {
-    const newUser = new UserModel({
-      ...req.body,
-      email: req.body.email.toLowerCase(),
-    });
-    await newUser.save();
-    res.status(201).send(newUser);
+    if (!req.headers.authorization) {
+      next(createError(401, { m: "Authorization required" }));
+    } else {
+      const decoded = atob(req.headers.authorization.split(" ")[1]);
+      const [email, pw] = decoded.split(":");
+      const newUser = new UserModel({
+        email: email.toLowerCase(),
+        pw: pw,
+      });
+      const token = crypto.randomBytes(512).toString("base64");
+      newUser.verifyToken = token;
+      await newUser.save();
+      res.cookie("csrfltoken", token, cookieOptions);
+      res.status(201).redirect(`${process.env.FE_URL}/verifyme`);
+      await sendVerifyLink(token, email);
+    }
   } catch (error: any) {
-    if (error.name === "MongoError")
+    console.log("error:", error);
+    if (error.name === "MongoServerError")
       next(
         createError(400, {
-          m: {
-            error: error.keyValue,
-            reason: "Duplicated key",
-            advice: "Change the key value",
-          },
+          m: "Email already exists",
         })
       );
     else if (error.name === "ValidationError")
@@ -37,15 +56,14 @@ authRouter.post("/register", async (req, res, next) => {
   }
 });
 
-authRouter.get("/login", basicAuthMiddleware, async (req, res, next) => {
+authRouter.post("/login", basicAuthMiddleware, async (req, res, next) => {
   try {
     if (req.user) {
       const { accessToken, refreshToken } = await JWTAuthenticate(req.user);
-      res.send({
+      res.status(200).send({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
-      res.status(200).send(req.user);
     }
   } catch (error) {
     console.log(error);
@@ -56,7 +74,7 @@ authRouter.get("/login", basicAuthMiddleware, async (req, res, next) => {
 authRouter.get("/logout", JWTMiddleWare, async (req, res, next) => {
   try {
     if (req.user) {
-      req.user.save()!;
+      req.user.save();
       res.status(200).send();
     }
   } catch (error) {
@@ -86,15 +104,24 @@ authRouter.get(
   }
 );
 
-authRouter.post("/refreshToken", async (req, res, next) => {
-  try {
-    const { newAccessToken, newRefreshToken } = await refreshTokens(
-      req.body.actualRefreshToken
-    );
-    res.send({ newAccessToken, newRefreshToken });
-  } catch (error) {
-    next(error);
+authRouter.post(
+  "/refreshToken",
+  refreshTokenMiddleWare,
+  async (req, res, next) => {
+    try {
+      if (req.user) {
+        const { newAccessToken, newRefreshToken } = await refreshTokens(
+          req.headers.authorization.split(" ")[1]
+        );
+        res.status(200).send({
+          access_token: newAccessToken,
+          refresh_token: newRefreshToken,
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 export default authRouter;

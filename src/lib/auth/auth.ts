@@ -1,15 +1,15 @@
 import UserModel from "../../services/user/userSchema";
 import createError from "http-errors";
-import { verifyAccessToken } from "./tools";
+import { verifyAccessToken, verifyRefreshToken } from "./tools";
 import atob from "atob";
-import { Middleware } from "types/interfaces";
 
 export const JWTMiddleWare = async (req, res, next) => {
-  if (!req.headers.get("Authorization")) {
+  if (!req.headers.authorization) {
     next(createError(401, { m: "Provide Access Token" }));
   } else {
     try {
-      const content = await verifyAccessToken(req.headers.get("Authorization"));
+      const accessToken = req.headers.authorization.split(" ")[1];
+      const content = await verifyAccessToken(accessToken);
 
       const user = await UserModel.findById(content._id);
 
@@ -25,11 +25,34 @@ export const JWTMiddleWare = async (req, res, next) => {
   }
 };
 
+export const refreshTokenMiddleWare = async (req, res, next) => {
+  if (!req.headers.authorization) {
+    next(createError(401, { m: "Provide Refresh Token" }));
+  } else {
+    try {
+      const refreshToken = req.headers.authorization.split(" ")[1];
+      const content = await verifyRefreshToken(refreshToken);
+
+      const user = await UserModel.findById(content._id);
+
+      if (user) {
+        req.user = user;
+        next();
+      } else {
+        next(createError(404, { m: "User not found" }));
+      }
+    } catch (error) {
+      next(createError(401, { m: "RefreshToken not valid" }));
+    }
+  }
+};
+
 export const basicAuthMiddleware = async (req, res, next) => {
-  if (!req.headers.get("Authorization")) {
+  if (!req.headers.authorization) {
+    console.log("req.headers.authorization:", req.headers.authorization);
     next(createError(401, { m: "Authorization required" }));
   } else {
-    const decoded = atob(req.headers.get("Authorization").split(" ")[1]);
+    const decoded = atob(req.headers.authorization.split(" ")[1]);
     const [email, password] = decoded.split(":");
 
     const user = await UserModel.checkCredentials(email, password);

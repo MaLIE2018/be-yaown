@@ -17,6 +17,7 @@ const userSchema = new Schema<User, UserModel>(
     accounts: [{ type: Schema.Types.ObjectId, ref: "Account" }],
     refreshToken: { type: String, default: "" },
     verified: { type: Boolean, default: false },
+    verifyToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
   },
   { timestamps: true }
@@ -26,6 +27,7 @@ userSchema.methods.toJSON = function () {
   const user = this;
   const userObj = user.toObject();
   delete userObj.refreshToken;
+  delete userObj.verifyToken;
   delete userObj.pw;
   delete userObj.__v;
 

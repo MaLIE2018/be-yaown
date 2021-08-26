@@ -2,12 +2,17 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { User } from "../../types/interfaces";
 import UserModel from "../../services/user/userSchema";
 
-const generateAccessToken = (payload: {}) =>
-  new Promise<string>((resolve, reject) =>
+let expirationTime = "";
+
+const generateAccessToken = (payload: {}) => {
+  process.env.NODE_ENV === "test"
+    ? (expirationTime = "1s")
+    : (expirationTime = "5min");
+  return new Promise<string>((resolve, reject) =>
     jwt.sign(
       payload,
       process.env.JWT_SECRET!,
-      { expiresIn: 60 * 60 },
+      { expiresIn: expirationTime },
       (err, token) => {
         if (err) reject(err);
 
@@ -15,13 +20,18 @@ const generateAccessToken = (payload: {}) =>
       }
     )
   );
+};
 
-const generateRefreshToken = (payload: {}) =>
-  new Promise<string>((resolve, reject) =>
+const generateRefreshToken = (payload: {}) => {
+  process.env.NODE_ENV === "test"
+    ? (expirationTime = "120")
+    : (expirationTime = "7d");
+  return new Promise<string>((resolve, reject) =>
     jwt.sign(
       payload,
       process.env.JWT_SECRET!,
-      { expiresIn: "15 days" },
+      { expiresIn: expirationTime },
+
       (err, token) => {
         if (err) reject(err);
 
@@ -29,6 +39,7 @@ const generateRefreshToken = (payload: {}) =>
       }
     )
   );
+};
 
 export const JWTAuthenticate = async (user: User) => {
   const accessToken = await generateAccessToken({ _id: user._id });
@@ -42,7 +53,6 @@ export const verifyRefreshToken = (refreshToken: string): Promise<JwtPayload> =>
   new Promise((resolve, reject) =>
     jwt.verify(refreshToken, process.env.JWT_SECRET!, (err, decodedToken) => {
       if (err) reject(err);
-
       resolve(decodedToken!);
     })
   );
@@ -56,8 +66,10 @@ export const verifyAccessToken = (accessToken: string) =>
     })
   );
 
-export const refreshTokens = async (actualRefreshToken) => {
+export const refreshTokens = async (actualRefreshToken: string) => {
+  console.log("content:");
   const content = await verifyRefreshToken(actualRefreshToken);
+  console.log("contentAfter:", content);
 
   const user = await UserModel.findById(content._id);
 
@@ -66,7 +78,6 @@ export const refreshTokens = async (actualRefreshToken) => {
   if (user.refreshToken === actualRefreshToken) {
     const newAccessToken = await generateAccessToken({ _id: user._id });
     const newRefreshToken = await generateRefreshToken({ _id: user._id });
-
     user.refreshToken = newRefreshToken;
 
     await user.save();

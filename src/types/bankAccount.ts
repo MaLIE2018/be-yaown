@@ -10,8 +10,8 @@ export interface Account {
   name: string;
   product: string;
   cashAccountType: string;
-  Balances: Balances[];
-  Transactions: { booked: Booked[]; pending: Pending[] };
+  balances: Balances[];
+  transactions: { booked: Booked[]; pending: Pending[] };
 }
 
 export interface Balances {
@@ -39,6 +39,7 @@ export interface Booked {
   bookingDate: Date;
   valueDate: Date;
   remittanceInformationUnstructured: string;
+  category: string;
 }
 
 export interface DebtorAccount {
