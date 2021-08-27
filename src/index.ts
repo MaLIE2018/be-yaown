@@ -20,6 +20,7 @@ const corsOptions = {
       next(createHttpError(403, { m: "Check your cors settings!" }));
     }
   },
+  credentials: true,
 };
 
 app.use(cors(corsOptions));

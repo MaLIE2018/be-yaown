@@ -12,12 +12,12 @@ let transporter = nodemailer.createTransport({
 
 export default transporter;
 
-export const sendVerifyLink = async (token: string, email: string) => {
+export const sendVerifyLink = async (emailToken: string, email: string) => {
   let info = await transporter.sendMail({
     from: "liebsch@dipmaxexport.com",
     to: email,
     subject: `Welcome to Yaown, please verify your email address.`,
-    text: `Please use this link ${process.env.BE_URL}/user/verify/${token}`,
-    html: `<p>Welcome to Yaown, please verify your email address. <p><a href='${process.env.FE_URL}/user/verify/${token}'>Please click this link</a></p>`,
+    text: `Please use this link ${process.env.BE_URL}/user/verify/${emailToken}`,
+    html: `<p>Welcome to Yaown, please verify your email address. <p><a href='${process.env.FE_URL}/verify?token=${emailToken}'>Please click this link</a></p>`,
   });
 };

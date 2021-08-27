@@ -15,8 +15,9 @@ export interface User {
   pw: string;
   refreshToken: string;
   accounts: Account[];
-  verified: boolean;
+  active: boolean;
   save: Function;
   googleId: string;
   verifyToken: string;
+  emailToken: string;
 }

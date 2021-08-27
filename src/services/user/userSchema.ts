@@ -16,8 +16,9 @@ const userSchema = new Schema<User, UserModel>(
     pw: { type: String, default: "" },
     accounts: [{ type: Schema.Types.ObjectId, ref: "Account" }],
     refreshToken: { type: String, default: "" },
-    verified: { type: Boolean, default: false },
+    active: { type: Boolean, default: false },
     verifyToken: { type: String, default: "" },
+    emailToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
   },
   { timestamps: true }
@@ -45,8 +46,8 @@ userSchema.static(
   "checkCredentials",
   async function checkCredentials(email, password) {
     const user = await this.findOne({ email: email });
-
     if (user) {
+      // if (!user.active) return null;
       const isMatch = await bcrypt.compare(password, user.pw!);
 
       if (isMatch) {

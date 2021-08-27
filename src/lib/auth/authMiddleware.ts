@@ -49,8 +49,7 @@ export const refreshTokenMiddleWare = async (req, res, next) => {
 
 export const basicAuthMiddleware = async (req, res, next) => {
   if (!req.headers.authorization) {
-    console.log("req.headers.authorization:", req.headers.authorization);
-    next(createError(401, { m: "Authorization required" }));
+    next(createError(400, { m: "Authorization required" }));
   } else {
     const decoded = atob(req.headers.authorization.split(" ")[1]);
     const [email, password] = decoded.split(":");
