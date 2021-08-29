@@ -17,17 +17,17 @@ export interface Account {
 export interface Balances {
   balanceAmount: BalanceAmount;
   balanceType: string;
-  referenceDate: Date;
+  referenceDate: string;
 }
 
 export interface BalanceAmount {
-  amount: string;
+  amount: number;
   currency: string;
 }
 
 export interface Transaction {
-  booked: Booked[];
-  pending: Pending[];
+  booked: any[];
+  pending: any[];
 }
 
 export interface Booked {
@@ -48,11 +48,12 @@ export interface DebtorAccount {
 
 export interface TransactionAmount {
   currency: string;
-  amount: string;
+  amount: number;
 }
 
 export interface Pending {
   transactionAmount: TransactionAmount;
   valueDate: Date;
   remittanceInformationUnstructured: string;
+  category: string;
 }

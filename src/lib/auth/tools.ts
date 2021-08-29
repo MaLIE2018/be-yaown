@@ -6,7 +6,7 @@ let expirationTime = "";
 
 const generateAccessToken = (payload: {}) => {
   process.env.NODE_ENV === "test"
-    ? (expirationTime = "1s")
+    ? (expirationTime = "15min")
     : (expirationTime = "5min");
   return new Promise<string>((resolve, reject) =>
     jwt.sign(
@@ -24,7 +24,7 @@ const generateAccessToken = (payload: {}) => {
 
 const generateRefreshToken = (payload: {}) => {
   process.env.NODE_ENV === "test"
-    ? (expirationTime = "120")
+    ? (expirationTime = "30min")
     : (expirationTime = "7d");
   return new Promise<string>((resolve, reject) =>
     jwt.sign(

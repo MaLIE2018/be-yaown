@@ -16,14 +16,12 @@ import { cookieOptions } from "../../util/cookies";
 const authRouter = express.Router();
 
 authRouter.post("/register", async (req, res, next) => {
-  let password = "";
   try {
     if (!req.headers.authorization) {
       next(createError(401, { m: "Authorization required" }));
     } else {
       const decoded = atob(req.headers.authorization.split(" ")[1]);
       const [email, pw] = decoded.split(":");
-      password = pw;
       const newUser = new UserModel({
         email: email.toLowerCase(),
         pw: pw,
@@ -39,20 +37,7 @@ authRouter.post("/register", async (req, res, next) => {
     }
   } catch (error: any) {
     if (error.code === 11000) {
-      const user = await UserModel.checkCredentials(
-        error.keyValue.email,
-        password
-      );
-      req.user = user;
-      if (req.user !== null) {
-        const { accessToken, refreshToken } = await JWTAuthenticate(req.user);
-        res.status(202).send({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-      } else {
-        next(createError(401, { m: "Credentials wrong" }));
-      }
+      next(createError(401, { m: "Email is already registered" }));
     } else if (error.name === "ValidationError")
       next(createError(400, { m: "ValidationError" }));
     else next(createError(500, { m: error.message }));
@@ -70,6 +55,7 @@ authRouter.post("/login", basicAuthMiddleware, async (req, res, next) => {
         res.status(200).send({
           access_token: accessToken,
           refresh_token: refreshToken,
+          user: req.user,
         });
       }
     }
@@ -82,7 +68,6 @@ authRouter.post("/login", basicAuthMiddleware, async (req, res, next) => {
 authRouter.get("/logout", JWTMiddleWare, async (req, res, next) => {
   try {
     if (req.user) {
-      req.user.save();
       res.status(200).send();
     }
   } catch (error) {

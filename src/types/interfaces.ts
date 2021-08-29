@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { Account } from "./bankAccount";
+import { Asset } from "types/asset";
 
 export type Middleware = (
   req: Request,
@@ -15,9 +16,11 @@ export interface User {
   pw: string;
   refreshToken: string;
   accounts: Account[];
+  assets: Asset[];
   active: boolean;
   save: Function;
   googleId: string;
   verifyToken: string;
   emailToken: string;
+  estimates: {};
 }

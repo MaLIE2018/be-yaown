@@ -11,12 +11,7 @@ const verifyRouter = express.Router();
 verifyRouter.post(
   "/:token",
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("req.params.token:", req.params.token);
     try {
-      // if (!req.cookies.csrfltoken) {
-      //   res.status(401).redirect(`${process.env.FE_URL}/cash`);
-      // next(createError(404, { message: "NotFound" }));
-      // }
       const user = await Users.findOneAndUpdate(
         { emailToken: req.params.token },
         { active: true, verifyToken: "", emailToken: "" }

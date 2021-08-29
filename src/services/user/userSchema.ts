@@ -1,12 +1,15 @@
 import mongoose, { Model } from "mongoose";
 import bcrypt from "bcrypt";
-import { User } from "types/interfaces";
+import { User } from "../../types/interfaces";
+import Models from "../../services/models";
 
 const { Schema, model } = mongoose;
 
 interface UserModel extends Model<User> {
   checkCredentials(email: string, password: string): {} | null;
 }
+
+const estimateSchema = new Schema({});
 
 const userSchema = new Schema<User, UserModel>(
   {
@@ -15,11 +18,13 @@ const userSchema = new Schema<User, UserModel>(
     img: { type: String, default: "" },
     pw: { type: String, default: "" },
     accounts: [{ type: Schema.Types.ObjectId, ref: "Account" }],
+    assets: [{ type: Schema.Types.ObjectId, ref: "Asset" }],
     refreshToken: { type: String, default: "" },
     active: { type: Boolean, default: false },
     verifyToken: { type: String, default: "" },
     emailToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
+    estimates: estimateSchema,
   },
   { timestamps: true }
 ); //, strict: false
@@ -29,6 +34,7 @@ userSchema.methods.toJSON = function () {
   const userObj = user.toObject();
   delete userObj.refreshToken;
   delete userObj.verifyToken;
+  delete userObj.googleId;
   delete userObj.pw;
   delete userObj.__v;
 
@@ -37,6 +43,18 @@ userSchema.methods.toJSON = function () {
 
 userSchema.pre("save", async function () {
   const newUser = this;
+  if (newUser.accounts.length === 0) {
+    const cashAccount = new Models.Accounts();
+    cashAccount.userId = newUser._id;
+    cashAccount.cashAccountType = "cash";
+    cashAccount.balances.push({
+      balanceAmount: { currency: "EUR", amount: 0 },
+      referenceDate: new Date().toISOString(),
+      balanceType: "closingBooked",
+    });
+    cashAccount.save();
+    newUser.accounts.push(cashAccount._id);
+  }
   if (newUser.isModified("pw")) {
     newUser.pw = await bcrypt.hash(newUser.pw!, 10);
   }
@@ -45,7 +63,9 @@ userSchema.pre("save", async function () {
 userSchema.static(
   "checkCredentials",
   async function checkCredentials(email, password) {
-    const user = await this.findOne({ email: email });
+    const user = await await this.findOne({ email: email }).populate({
+      path: "accounts",
+    });
     if (user) {
       // if (!user.active) return null;
       const isMatch = await bcrypt.compare(password, user.pw!);

@@ -1,9 +1,9 @@
 import express, { NextFunction, Request, Response } from "express";
 import AccountModel from "../account/accountSchema";
-const accountRouter = express.Router();
+const assetRouter = express.Router();
 
-//post Account
-accountRouter.post(
+// Post Asset
+assetRouter.post(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -18,17 +18,8 @@ accountRouter.post(
     }
   }
 );
-
-// get all accounts
-accountRouter.get(
-  "/",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-    } catch (error) {}
-  }
-);
-// delete accounts
-accountRouter.delete(
+// Get all Assets
+assetRouter.get(
   "/:id",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -36,4 +27,22 @@ accountRouter.delete(
   }
 );
 
-export default accountRouter;
+//Add change
+assetRouter.put(
+  "/:id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+    } catch (error) {}
+  }
+);
+
+//Delete
+assetRouter.delete(
+  "/:id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+    } catch (error) {}
+  }
+);
+
+export default assetRouter;

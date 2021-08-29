@@ -1,7 +1,8 @@
 import mongoose, { Model } from "mongoose";
 import { Account } from "types/bankAccount";
-import { Booked } from "../../types/bankAccount";
-
+import transactionSchema, {
+  balanceSchema,
+} from "../transaction/transactionSchema";
 const { Schema, model } = mongoose;
 
 const accountSchema = new Schema<Account>({
@@ -13,8 +14,11 @@ const accountSchema = new Schema<Account>({
   name: { type: String, default: "" },
   product: { type: String, default: "" },
   cashAccountType: { type: String, default: "" },
-  balances: [],
-  transactions: { booked: [], pending: [] },
+  balances: { type: [balanceSchema], default: [] },
+  transactions: {
+    booked: { type: [transactionSchema], default: [] },
+    pending: { type: [transactionSchema], default: [] },
+  },
 });
 
 export default model<Account>("Account", accountSchema);
