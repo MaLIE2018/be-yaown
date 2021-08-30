@@ -15,14 +15,9 @@ export interface Account {
 }
 
 export interface Balances {
-  balanceAmount: BalanceAmount;
+  balanceAmount: TransactionAmount;
   balanceType: string;
   referenceDate: string;
-}
-
-export interface BalanceAmount {
-  amount: number;
-  currency: string;
 }
 
 export interface Transaction {
@@ -42,6 +37,13 @@ export interface Booked {
   category: string;
 }
 
+export interface Pending {
+  transactionAmount: TransactionAmount;
+  valueDate: Date;
+  remittanceInformationUnstructured: string;
+  category: string;
+}
+
 export interface DebtorAccount {
   iban: string;
 }
@@ -49,11 +51,4 @@ export interface DebtorAccount {
 export interface TransactionAmount {
   currency: string;
   amount: number;
-}
-
-export interface Pending {
-  transactionAmount: TransactionAmount;
-  valueDate: Date;
-  remittanceInformationUnstructured: string;
-  category: string;
 }
