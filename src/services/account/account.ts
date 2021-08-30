@@ -1,4 +1,5 @@
 import express, { NextFunction, Request, Response } from "express";
+import createHttpError from "http-errors";
 import AccountModel from "../account/accountSchema";
 const accountRouter = express.Router();
 
@@ -24,7 +25,15 @@ accountRouter.get(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-    } catch (error) {}
+      const accounts = await AccountModel.find({ userId: req.user._id }).select(
+        { transactions: 0 }
+      );
+      !accounts
+        ? next(createHttpError(404, { m: "Account not found" }))
+        : res.status(200).send(accounts);
+    } catch (error) {
+      next(error);
+    }
   }
 );
 // delete accounts

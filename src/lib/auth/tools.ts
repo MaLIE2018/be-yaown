@@ -67,9 +67,7 @@ export const verifyAccessToken = (accessToken: string) =>
   );
 
 export const refreshTokens = async (actualRefreshToken: string) => {
-  console.log("content:");
   const content = await verifyRefreshToken(actualRefreshToken);
-  console.log("contentAfter:", content);
 
   const user = await UserModel.findById(content._id);
 

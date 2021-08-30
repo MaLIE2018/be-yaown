@@ -30,11 +30,11 @@ transactionRouter.post(
         req.params.accountId,
         {
           $push: { "transactions.booked": req.body },
-          // $set: {
-          //   "balances.1.balanceAmount.amount": {
-          //     $sum: "transactions.booked.transactionAmount.amount",
-          //   },
-          // },
+          $inc: {
+            "balances.0.balanceAmount.amount":
+              req.body.transactionAmount.amount,
+          },
+          $set: { "balances.0.referenceDate": new Date().toISOString() },
         }
       );
 
