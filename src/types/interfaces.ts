@@ -8,6 +8,15 @@ export type Middleware = (
   next: NextFunction
 ) => void;
 
+export interface Agreement {
+  aspsp_id: string;
+  id: string;
+  created_at: string;
+  access_valid_for_days: number;
+  max_historical_days: number;
+  accepted: string | null;
+}
+
 export interface User {
   _id?: string;
   name: string;
@@ -23,4 +32,7 @@ export interface User {
   verifyToken: string;
   emailToken: string;
   estimates: {};
+  reference: string;
+  agreements: Agreement[];
+  requisition: string;
 }
