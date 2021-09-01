@@ -1,4 +1,4 @@
-import mongoose, { Model, Schema } from "mongoose";
+import mongoose, { Model } from "mongoose";
 import bcrypt from "bcrypt";
 import { User, Agreement } from "../../types/interfaces";
 import Models from "../../services/models";
