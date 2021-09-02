@@ -9,6 +9,10 @@ export interface Account {
   userId: ObjectId;
   name: string;
   product: string;
+  accountId: string;
+  bankName: string;
+  aspspId: string;
+  logo: string;
   cashAccountType: string;
   balances: Balances[];
   transactions: { booked: Booked[]; pending: Pending[] };

@@ -2,8 +2,40 @@ import express, { NextFunction, Request, Response } from "express";
 import createError from "http-errors";
 import { Agreement } from "types/interfaces";
 import { AIPInstance } from "../../util/axios";
-
+import { nanoid } from "nanoid";
+import { cookieOptions } from "util/cookies";
+import Models from "../models";
 const bankRouter = express.Router();
+bankRouter.get(
+  "/checkBank/:aspsp_id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const isMatch = req.user.agreements.some(
+        (agreement: Agreement) => agreement.aspsp_id === req.params.aspsp_id
+      );
+      isMatch ? res.status(204).send() : res.status(200).send();
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
+);
+
+bankRouter.get(
+  "/aspsps/:id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const bank = await AIPInstance.get(`aspsps/${req.params.id}`).then(
+        (bank) => bank
+      );
+      bank
+        ? res.status(200).send(bank.data)
+        : next(createError(404, { m: "No available Banks" }));
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 bankRouter.get(
   "/:countrycode",
@@ -21,23 +53,79 @@ bankRouter.get(
     }
   }
 );
-
-bankRouter.get(
+// create Enduser Agreement
+bankRouter.post(
   "/agreements/enduser/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const agreement = await AIPInstance.post(`agreements/enduser/`, {
         enduser_id: req.user._id,
-        max_historical_days: 365,
+        max_historical_days: 90,
         aspsp_id: `${req.body.aspsp_id}`,
       }).then((agreement) => agreement);
 
-      if (agreement) req.user.agreement.push(agreement);
-      req.user.save();
+      if (agreement.data) {
+        req.user.agreements.push(agreement.data);
+        await req.user.save();
+        res.status(200).send();
+      } else {
+        next(createError(404, { m: "No available Banks" }));
+      }
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
+);
+// create Requisition
+bankRouter.post(
+  "/requisitions/",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currAgreementIndex = req.user.agreements.findIndex(
+        (agreement: Agreement) => agreement.aspsp_id === req.body.aspsp_id
+      );
+      const reference = nanoid();
+      const requisition = await AIPInstance.post(`requisitions/`, {
+        enduser_id: req.user._id,
+        agreements: [req.user.agreements[currAgreementIndex].id],
+        redirect: `http://localhost:3000/wealth?status=sucessful-connected&id=${req.user.agreements[currAgreementIndex].aspsp_id}`,
+        reference: reference,
+      }).then((requisition) => requisition);
 
-      agreement
-        ? res.status(200).send()
-        : next(createError(404, { m: "No available Banks" }));
+      if (requisition) {
+        req.user.agreements[currAgreementIndex].requisition =
+          requisition.data.id;
+        req.user.agreements[currAgreementIndex].reference = reference;
+        await req.user.save();
+        res.status(200).send();
+      } else {
+        next(createError(500, { m: "Generic Server Error" }));
+      }
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
+);
+// get initiation Link
+bankRouter.post(
+  "/initiationLink/",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currAgreement = req.user.agreements.find(
+        (agreement: Agreement) => agreement.aspsp_id === req.body.aspsp_id
+      );
+      const link = await AIPInstance.post(
+        `/requisitions/${currAgreement.requisition}/links/`,
+        { aspsp_id: req.body.aspsp_id }
+      ).then((link) => link);
+
+      if (link) {
+        res.status(200).send({ initiate: link.data.initiate });
+      } else {
+        next(createError(500, { m: "Generic Server Error" }));
+      }
     } catch (error) {
       console.log(error);
       next(error);
@@ -45,28 +133,57 @@ bankRouter.get(
   }
 );
 
-bankRouter.get(
-  "/requisitions/",
+// get accounts
+bankRouter.post(
+  "/requisitions/accounts",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const ids = req.user.agreements.reducer(
-        (acc: string[], val: Agreement) => acc.concat(val.id),
-        []
+      const currAgreementIndex = req.user.agreements.findIndex(
+        (agreement: Agreement) => agreement.aspsp_id === req.body.aspsp_id
       );
-      const requisition = await AIPInstance.post(`requisitions/`, {
-        enduser_id: req.user._id,
-        agreements: [...ids],
-        redirect: "http://localhost:3000/cash",
-        reference: req.user.reference,
-      }).then((requisition) => requisition);
 
-      if (requisition) {
-        req.user.requisition = requisition.data.id;
+      const accountList = await AIPInstance.get(
+        `requisitions/${req.user.agreements[currAgreementIndex].requisition}/`
+      ).then((requisition) => requisition);
+      if (accountList) {
+        // create a account for each retrieved account from the aspsp
+        accountList.data.accounts.forEach(async (accountId) => {
+          //get bank details
+          const bank = await AIPInstance.get(
+            `aspsps/${req.body.aspsp_id}`
+          ).then((bank) => bank.data);
+
+          //get account details
+          const account = await AIPInstance.get(
+            `accounts/${accountId}/details/`
+          );
+          //create new Account
+          const newAccount = new Models.Accounts({
+            ...account.data.account,
+            userId: req.user._id,
+            accountId: accountId,
+            aspspId: bank.id,
+            bankName: bank.name,
+            logo: bank.logo,
+          });
+          //get balances for each account
+          const balances = await AIPInstance.get(
+            `accounts/${accountId}/balances/`
+          );
+          //add balances to newly created account
+          newAccount.balances.push(...balances.data.balances);
+          await newAccount.save();
+          req.user.accounts.push(newAccount._id);
+        });
+        // write into the list of accounts of the user
+        req.user.agreements[currAgreementIndex].accounts.push(
+          ...accountList.data.accounts
+        );
+        await req.user.save();
+        res.status(200).send();
+      } else {
+        next(createError(500, { m: "Generic Server Error" }));
       }
-
-      requisition
-        ? res.status(200).send()
-        : next(createError(500, { m: "Generic Server Error" }));
     } catch (error) {
       console.log(error);
       next(error);

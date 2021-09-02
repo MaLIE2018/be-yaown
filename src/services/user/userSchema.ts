@@ -2,7 +2,6 @@ import mongoose, { Model } from "mongoose";
 import bcrypt from "bcrypt";
 import { User, Agreement } from "../../types/interfaces";
 import Models from "../../services/models";
-import { nanoid } from "nanoid";
 
 const { Schema, model } = mongoose;
 
@@ -26,8 +25,7 @@ const userSchema = new Schema<User, UserModel>(
     emailToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
     estimates: estimateSchema,
-    reference: { type: String, default: "" },
-    requisition: { type: String, default: "" },
+
     agreements: [
       new Schema<Agreement>(
         {
@@ -40,6 +38,9 @@ const userSchema = new Schema<User, UserModel>(
           accepted: { type: String, default: "" },
           access_valid_for_days: { type: Number },
           max_historical_days: { type: Number },
+          requisition: { type: String, default: "" },
+          accounts: [],
+          reference: { type: String, default: "" },
         },
         { _id: false }
       ),
@@ -56,9 +57,7 @@ userSchema.methods.toJSON = function () {
   delete userObj.googleId;
   delete userObj.pw;
   delete userObj.__v;
-  delete userObj.reference;
   delete userObj.agreements;
-  delete userObj.requisition;
 
   return userObj;
 };
@@ -74,9 +73,9 @@ userSchema.pre("save", async function () {
       referenceDate: new Date().toISOString(),
       balanceType: "closingBooked",
     });
+    cashAccount.bankName = "Cash";
     cashAccount.save();
     newUser.accounts.push(cashAccount._id);
-    newUser.reference = nanoid();
   }
   if (newUser.isModified("pw")) {
     newUser.pw = await bcrypt.hash(newUser.pw!, 10);

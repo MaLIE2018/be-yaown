@@ -15,6 +15,9 @@ export interface Agreement {
   access_valid_for_days: number;
   max_historical_days: number;
   accepted: string | null;
+  requisition: string;
+  accounts: string[];
+  reference: string;
 }
 
 export interface User {
@@ -32,7 +35,6 @@ export interface User {
   verifyToken: string;
   emailToken: string;
   estimates: {};
-  reference: string;
+
   agreements: Agreement[];
-  requisition: string;
 }
