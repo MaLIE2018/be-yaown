@@ -89,7 +89,7 @@ bankRouter.post(
       const requisition = await AIPInstance.post(`requisitions/`, {
         enduser_id: req.user._id,
         agreements: [req.user.agreements[currAgreementIndex].id],
-        redirect: `http://localhost:3000/wealth?status=sucessful-connected&id=${req.user.agreements[currAgreementIndex].aspsp_id}`,
+        redirect: `http://localhost:3000/wealth?status=successful-connected&id=${req.user.agreements[currAgreementIndex].aspsp_id}`,
         reference: reference,
       }).then((requisition) => requisition);
 
