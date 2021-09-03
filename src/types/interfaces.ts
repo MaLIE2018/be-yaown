@@ -27,7 +27,6 @@ export interface User {
   email: string;
   pw: string;
   refreshToken: string;
-  accounts: Account[];
   assets: Asset[];
   active: boolean;
   save: Function;

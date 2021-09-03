@@ -5,11 +5,13 @@ const transactionRouter = express.Router();
 
 // Get all transactions for a specific account
 transactionRouter.get(
-  "/:accountId",
+  "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const account = await models.Accounts.findById(req.params.accountId);
-      console.log("account:", account);
+      const account = await models.Accounts.findOne({
+        cashAccountType: "cash",
+        userId: req.user._id,
+      });
       if (!account) {
         next(createHttpError(404, { m: "Account not found" }));
       } else {
@@ -23,11 +25,11 @@ transactionRouter.get(
 
 //Add transaction to an account
 transactionRouter.post(
-  "/:accountId",
+  "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const account = await models.Accounts.findByIdAndUpdate(
-        req.params.accountId,
+      const account = await models.Accounts.findOneAndUpdate(
+        { cashAccountType: "cash", userId: req.user.id },
         {
           $push: { "transactions.booked": req.body },
           $inc: {

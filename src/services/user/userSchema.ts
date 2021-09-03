@@ -17,7 +17,6 @@ const userSchema = new Schema<User, UserModel>(
     email: { type: String, unique: true, required: true },
     img: { type: String, default: "" },
     pw: { type: String, default: "" },
-    accounts: [{ type: Schema.Types.ObjectId, ref: "Account" }],
     assets: [{ type: Schema.Types.ObjectId, ref: "Asset" }],
     refreshToken: { type: String, default: "" },
     active: { type: Boolean, default: false },
@@ -25,7 +24,6 @@ const userSchema = new Schema<User, UserModel>(
     emailToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
     estimates: estimateSchema,
-
     agreements: [
       new Schema<Agreement>(
         {
@@ -64,7 +62,10 @@ userSchema.methods.toJSON = function () {
 
 userSchema.pre("save", async function () {
   const newUser = this;
-  if (newUser.accounts.length === 0) {
+  const account = Models.Accounts.find({
+    $and: [{ cashAccountType: "cash" }, { userId: newUser.id }],
+  });
+  if (!account) {
     const cashAccount = new Models.Accounts();
     cashAccount.userId = newUser._id;
     cashAccount.cashAccountType = "cash";
@@ -75,8 +76,8 @@ userSchema.pre("save", async function () {
     });
     cashAccount.bankName = "Cash";
     cashAccount.save();
-    newUser.accounts.push(cashAccount._id);
   }
+
   if (newUser.isModified("pw")) {
     newUser.pw = await bcrypt.hash(newUser.pw!, 10);
   }
@@ -85,9 +86,7 @@ userSchema.pre("save", async function () {
 userSchema.static(
   "checkCredentials",
   async function checkCredentials(email, password) {
-    const user = await await this.findOne({ email: email }).populate({
-      path: "accounts",
-    });
+    const user = await await this.findOne({ email: email });
     if (user) {
       // if (!user.active) return null;
       const isMatch = await bcrypt.compare(password, user.pw!);
