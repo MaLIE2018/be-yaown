@@ -18,6 +18,9 @@ export interface Agreement {
   requisition: string;
   accounts: string[];
   reference: string;
+  state?: string;
+  access_token?: string;
+  token_type?: string;
 }
 
 export interface User {

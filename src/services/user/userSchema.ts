@@ -39,6 +39,9 @@ const userSchema = new Schema<User, UserModel>(
           requisition: { type: String, default: "" },
           accounts: [],
           reference: { type: String, default: "" },
+          access_token: { type: String },
+          token_type: { type: String },
+          state: { type: String },
         },
         { _id: false }
       ),

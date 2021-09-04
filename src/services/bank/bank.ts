@@ -5,6 +5,8 @@ import { AIPInstance } from "../../util/axios";
 import { nanoid } from "nanoid";
 import { cookieOptions } from "util/cookies";
 import Models from "../models";
+import axios from "axios";
+
 const bankRouter = express.Router();
 bankRouter.get(
   "/checkBank/:aspsp_id",
@@ -89,7 +91,7 @@ bankRouter.post(
       const requisition = await AIPInstance.post(`requisitions/`, {
         enduser_id: req.user._id,
         agreements: [req.user.agreements[currAgreementIndex].id],
-        redirect: `http://localhost:3000/wealth?status=successful-connected&id=${req.user.agreements[currAgreementIndex].aspsp_id}`,
+        redirect: `${process.env.FE_URL}/wealth?status=successful-connected&id=${req.user.agreements[currAgreementIndex].aspsp_id}`,
         reference: reference,
       }).then((requisition) => requisition);
 
@@ -157,15 +159,19 @@ bankRouter.post(
           const account = await AIPInstance.get(
             `accounts/${accountId}/details/`
           );
-          //create new Account
-          const newAccount = new Models.Accounts({
+          if (account.data.account.name === "") {
+            account.data.account.name = "Bank Account";
+          }
+          const newAccountObj = {
             ...account.data.account,
             userId: req.user._id,
             accountId: accountId,
             aspspId: bank.id,
             bankName: bank.name,
             logo: bank.logo,
-          });
+          };
+          //create new Account
+          const newAccount = new Models.Accounts(newAccountObj);
           //get balances for each account
           const balances = await AIPInstance.get(
             `accounts/${accountId}/balances/`
@@ -187,6 +193,45 @@ bankRouter.post(
     } catch (error) {
       console.log(error);
       next(error);
+    }
+  }
+);
+
+//bunq
+bankRouter.get(
+  "/auth/bunq",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(200).send({
+        initiate: `https://oauth.bunq.com/auth?response_type=code&client_id=${process.env.BUNQ_CLIENT_ID}&redirect_uri=${process.env.FE_URL}/wealth?status=successful-connected-with-bunq&state=${req.user._id}`,
+      });
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
+);
+
+bankRouter.post(
+  "/auth/bunq/code",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = await axios
+        .post(
+          `https://api.oauth.bunq.com/v1/token?grant_type=authorization_code&code=${req.body.code}&redirect_uri=${process.env.FE_URL}/wealth?status=successful-connected-with-bunq&client_id=${process.env.BUNQ_CLIENT_ID}&client_secret=${process.env.BUNQ_CLIENT_SECRET}`
+        )
+        .then((auth) => auth.data);
+      req.user.agreements.push({
+        access_token: auth.access_token,
+        token_type: auth.token_type,
+        state: auth.state,
+        aspsp_id: "BUNQ_NE",
+      });
+      await req.user.save();
+      res.status(200).send();
+    } catch (error) {
+      next(error);
+      console.log(error);
     }
   }
 );
