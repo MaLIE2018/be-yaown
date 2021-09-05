@@ -6,7 +6,6 @@ import bankRouter from "./bank/bank";
 import userRouter from "./user/user";
 import verifyRouter from "./verify/verify";
 import transactionRouter from "./transaction/transaction";
-import testRouter from "./test/test";
 
 const route = express.Router();
 
@@ -16,6 +15,5 @@ route.use("/account", JWTMiddleWare, accountRouter);
 route.use("/transaction", JWTMiddleWare, transactionRouter);
 route.use("/auth", authRouter);
 route.use("/verify-email", verifyRouter);
-route.use("/test", testRouter);
 
 export default route;

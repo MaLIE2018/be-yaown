@@ -1,21 +1,78 @@
 import express, { NextFunction, Request, Response } from "express";
 import createHttpError from "http-errors";
+import { Booked } from "types/bankAccount";
 import models from "../models";
+import q2m from "query-to-mongo";
+import { ObjectId } from "bson";
+
 const transactionRouter = express.Router();
 
-// Get all transactions for a specific account
+//get income and expenses
 transactionRouter.get(
-  "/",
+  "/incexp",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const account = await models.Accounts.findOne({
-        cashAccountType: "cash",
-        userId: req.user._id,
-      });
-      if (!account) {
-        next(createHttpError(404, { m: "Account not found" }));
+      let query = req.query;
+      let match = {
+        bookingDate: {},
+        accountId: new ObjectId(),
+        userId: new ObjectId(req.user._id),
+      };
+      // BookingDate: three cases:  no date, exact date, range
+      if (query?.bookingDate) {
+        switch (query?.bookingDate.length) {
+          case 1:
+            match.bookingDate = new Date(query.bookingDate[0]);
+            break;
+          case 2:
+            match.bookingDate = {
+              $gt: new Date(query.bookingDate[0]),
+              $lt: new Date(query.bookingDate[1]),
+            };
+        }
       } else {
-        res.status(200).send(account.transactions);
+        delete match.bookingDate;
+      }
+      //Account: two cases: all account, specific account
+      if (query?.accountId && query?.accountId !== "All")
+        match.accountId = new ObjectId(query.accountId.toString());
+      else delete match.accountId;
+
+      const transactions = await models.Transaction.aggregate([
+        {
+          $match: match,
+        },
+        {
+          $group: {
+            _id: "Statement",
+            expenses: {
+              $sum: {
+                $cond: [
+                  { $lt: ["$transactionAmount.amount", 0] },
+                  "$transactionAmount.amount",
+                  0,
+                ],
+              },
+            },
+            incomes: {
+              $sum: {
+                $cond: [
+                  { $gte: ["$transactionAmount.amount", 0] },
+                  "$transactionAmount.amount",
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]);
+
+      // const transactions = await models.Transaction.find(query.criteria);
+
+      if (!transactions) {
+        next(createHttpError(404, { m: "No transaction found" }));
+      } else {
+        res.status(200).send(transactions);
       }
     } catch (error) {
       next(error);
@@ -23,15 +80,149 @@ transactionRouter.get(
   }
 );
 
-//Add transaction to an account
+//get filtered by Category Transaction
+transactionRouter.get(
+  "/groupedbycategory",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      let query = req.query;
+      let match = {
+        bookingDate: {},
+        accountId: new ObjectId(),
+        userId: new ObjectId(req.user._id),
+      };
+      // BookingDate: three cases:  no date, exact date, range
+      if (query?.bookingDate) {
+        switch (query?.bookingDate.length) {
+          case 1:
+            match.bookingDate = new Date(query.bookingDate[0]);
+            break;
+          case 2:
+            match.bookingDate = {
+              $gt: new Date(query.bookingDate[0]),
+              $lt: new Date(query.bookingDate[1]),
+            };
+        }
+      } else {
+        delete match.bookingDate;
+      }
+      //Account: two cases: all account, specific account
+      if (query?.accountId && query?.accountId !== "All")
+        match.accountId = new ObjectId(query.accountId.toString());
+      else delete match.accountId;
+
+      const transactions = await models.Transaction.aggregate([
+        {
+          $match: match,
+        },
+      ]).group({
+        _id: "$category",
+        total: { $sum: "$transactionAmount.amount" },
+      });
+
+      // const transactions = await models.Transaction.find(query.criteria);
+
+      if (!transactions) {
+        next(createHttpError(404, { m: "No transaction found" }));
+      } else {
+        res.status(200).send(transactions);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+//get filtered by Date Transaction
+transactionRouter.get(
+  "/groupedbydate/:interval",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      let query = req.query;
+      console.log("query:", query);
+      console.log(req.params.interval);
+      let match = {
+        bookingDate: {},
+        accountId: new ObjectId(),
+        userId: new ObjectId(req.user._id),
+      };
+      let groupId: {} | string = "$bookingDate";
+      // BookingDate: three cases:  no date, exact date, range
+      if (query?.bookingDate) {
+        if (query?.bookingDate.length === 2) {
+          match.bookingDate = {
+            $gt: new Date(query.bookingDate[0]),
+            $lt: new Date(query.bookingDate[1]),
+          };
+        } else if (typeof query.bookingDate === "string") {
+          match.bookingDate = new Date(query.bookingDate);
+        }
+      } else {
+        delete match.bookingDate;
+      }
+      //Account: two cases: all account, specific account
+      if (query?.accountId && query?.accountId !== "All")
+        match.accountId = new ObjectId(query.accountId.toString());
+      else delete match.accountId;
+
+      //If annually then group by month
+      if (req.params.interval === "Annually") {
+        groupId = { $month: "$bookingDate" };
+      }
+      console.log("match:", match);
+      const transactions = await models.Transaction.aggregate([
+        {
+          $match: match,
+        },
+      ]).group({
+        _id: groupId,
+        total: { $sum: "$transactionAmount.amount" },
+      });
+
+      if (!transactions) {
+        next(createHttpError(404, { m: "No transaction found" }));
+      } else {
+        res.status(200).send(transactions);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Get all transactions for a specific account //accountId is here the mongodb ObjectID
+transactionRouter.get(
+  "/:accountId",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const transactions = await models.Transaction.find({
+        $and: [
+          {
+            accountId: req.params.accountId,
+          },
+          { userId: req.user._id },
+        ],
+      });
+
+      if (!transactions) {
+        next(createHttpError(404, { m: "No transaction found" }));
+      } else {
+        res.status(200).send();
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+//Add transaction to cash account
 transactionRouter.post(
-  "/",
+  "/:accountId",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const account = await models.Accounts.findOneAndUpdate(
-        { cashAccountType: "cash", userId: req.user.id },
+        { cashAccountType: "cash", userId: req.user._id },
         {
-          $push: { "transactions.booked": req.body },
           $inc: {
             "balances.0.balanceAmount.amount":
               req.body.transactionAmount.amount,
@@ -39,10 +230,16 @@ transactionRouter.post(
           $set: { "balances.0.referenceDate": new Date().toISOString() },
         }
       );
-
       if (!account) {
         next(createHttpError(404, { m: "Account not found" }));
       } else {
+        const newTransaction: Booked = {
+          ...req.body,
+          accountId: req.params.accountId,
+          userId: req.user._id,
+        };
+        const transaction = new models.Transaction(newTransaction);
+        await transaction.save();
         res.status(200).send();
       }
     } catch (error) {

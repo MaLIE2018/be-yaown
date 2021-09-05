@@ -39,6 +39,8 @@ export interface Booked {
   valueDate: Date;
   remittanceInformationUnstructured: string;
   category: string;
+  userId: string;
+  accountId: string;
 }
 
 export interface Pending {

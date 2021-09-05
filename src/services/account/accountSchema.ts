@@ -20,12 +20,20 @@ const accountSchema = new Schema<Account>(
     aspspId: { type: String, default: "" },
     cashAccountType: { type: String, default: "" },
     balances: { type: [balanceSchema], default: [] },
-    transactions: {
-      booked: { type: [transactionSchema], default: [] },
-      pending: { type: [transactionSchema], default: [] },
-    },
   },
   { timestamps: true }
 );
+
+accountSchema.methods.toJSON = function () {
+  const account = this;
+  const accountObj = account.toObject();
+  delete accountObj.accountId;
+  delete accountObj.userId;
+  delete accountObj.iban;
+  delete accountObj.cashAccountType;
+  delete accountObj.resourceId;
+
+  return accountObj;
+};
 
 export default model<Account>("Account", accountSchema);

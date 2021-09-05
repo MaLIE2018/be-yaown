@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
-import { DebtorAccount, TransactionAmount } from "types/bankAccount";
+import { Booked, DebtorAccount, TransactionAmount } from "types/bankAccount";
 
-const { Schema } = mongoose;
+const { Schema, model } = mongoose;
 
 export const transactionAmountSchema = new Schema<TransactionAmount>(
   {
@@ -29,14 +29,16 @@ export const balanceSchema = new Schema(
 
 const transactionSchema = new Schema({
   transactionId: { type: String, default: "" },
+  accountId: { type: Schema.Types.ObjectId, ref: "Account" },
+  userId: { type: Schema.Types.ObjectId, ref: "User" },
   debtorName: { type: String, default: "" },
   debtorAccount: { type: debtorAccountSchema },
   transactionAmount: { type: transactionAmountSchema },
   bankTransactionCode: { type: String, default: "" },
-  bookingDate: { type: String, default: "" },
-  valueDate: { type: String, default: "" },
+  bookingDate: { type: Date, default: new Date() },
+  valueDate: { type: Date, default: new Date() },
   remittanceInformationUnstructured: { type: String, default: "" },
   category: { type: String, default: "" },
 });
 
-export default transactionSchema;
+export default model("Transaction", transactionSchema);
