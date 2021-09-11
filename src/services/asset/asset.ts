@@ -1,5 +1,7 @@
 import express, { NextFunction, Request, Response } from "express";
-import AccountModel from "../account/accountSchema";
+import createHttpError from "http-errors";
+import models from "../models";
+
 const assetRouter = express.Router();
 
 // Post Asset
@@ -7,11 +9,11 @@ assetRouter.post(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const newAccount = new AccountModel({
+      const asset = new models.Assets({
         ...req.body,
         userId: req.user._id,
       });
-      await newAccount.save();
+      await asset.save();
       res.status(200).send();
     } catch (error) {
       next(error);
@@ -20,9 +22,15 @@ assetRouter.post(
 );
 // Get all Assets
 assetRouter.get(
-  "/:id",
+  "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const assets = await models.Assets.find({ userId: req.user._id });
+      if (!assets) {
+        next(createHttpError(404, { m: "No assets found" }));
+      } else if (assets.length > 0) {
+        res.status(200).send(assets);
+      }
     } catch (error) {}
   }
 );

@@ -17,7 +17,6 @@ const userSchema = new Schema<User, UserModel>(
     email: { type: String, unique: true, required: true },
     img: { type: String, default: "" },
     pw: { type: String, default: "" },
-    assets: [{ type: Schema.Types.ObjectId, ref: "Asset" }],
     refreshToken: { type: String, default: "" },
     active: { type: Boolean, default: false },
     verifyToken: { type: String, default: "" },
@@ -72,6 +71,7 @@ userSchema.pre("save", async function () {
     const cashAccount = new Models.Accounts();
     cashAccount.userId = newUser._id;
     cashAccount.cashAccountType = "cash";
+    cashAccount.currency = "EUR";
     cashAccount.balances.push({
       balanceAmount: { currency: "EUR", amount: 0 },
       referenceDate: new Date().toISOString(),

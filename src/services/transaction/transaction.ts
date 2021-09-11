@@ -4,6 +4,7 @@ import { Booked } from "types/bankAccount";
 import models from "../models";
 import q2m from "query-to-mongo";
 import { ObjectId } from "bson";
+import { getQuery } from "../../util/query";
 
 const transactionRouter = express.Router();
 
@@ -12,35 +13,9 @@ transactionRouter.get(
   "/incexp",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      let query = req.query;
-      let match = {
-        bookingDate: {},
-        accountId: new ObjectId(),
-        userId: new ObjectId(req.user._id),
-      };
-      // BookingDate: three cases:  no date, exact date, range
-      if (query?.bookingDate) {
-        switch (query?.bookingDate.length) {
-          case 1:
-            match.bookingDate = new Date(query.bookingDate[0]);
-            break;
-          case 2:
-            match.bookingDate = {
-              $gt: new Date(query.bookingDate[0]),
-              $lt: new Date(query.bookingDate[1]),
-            };
-        }
-      } else {
-        delete match.bookingDate;
-      }
-      //Account: two cases: all account, specific account
-      if (query?.accountId && query?.accountId !== "All")
-        match.accountId = new ObjectId(query.accountId.toString());
-      else delete match.accountId;
-
       const transactions = await models.Transaction.aggregate([
         {
-          $match: match,
+          $match: getQuery(req.query, req.user._id),
         },
         {
           $group: {
@@ -85,35 +60,9 @@ transactionRouter.get(
   "/groupedbycategory",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      let query = req.query;
-      let match = {
-        bookingDate: {},
-        accountId: new ObjectId(),
-        userId: new ObjectId(req.user._id),
-      };
-      // BookingDate: three cases:  no date, exact date, range
-      if (query?.bookingDate) {
-        switch (query?.bookingDate.length) {
-          case 1:
-            match.bookingDate = new Date(query.bookingDate[0]);
-            break;
-          case 2:
-            match.bookingDate = {
-              $gt: new Date(query.bookingDate[0]),
-              $lt: new Date(query.bookingDate[1]),
-            };
-        }
-      } else {
-        delete match.bookingDate;
-      }
-      //Account: two cases: all account, specific account
-      if (query?.accountId && query?.accountId !== "All")
-        match.accountId = new ObjectId(query.accountId.toString());
-      else delete match.accountId;
-
       const transactions = await models.Transaction.aggregate([
         {
-          $match: match,
+          $match: getQuery(req.query, req.user._id),
         },
       ]).group({
         _id: "$category",
@@ -138,41 +87,17 @@ transactionRouter.get(
   "/groupedbydate/:interval",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      let query = req.query;
-      console.log("query:", query);
-      console.log(req.params.interval);
-      let match = {
-        bookingDate: {},
-        accountId: new ObjectId(),
-        userId: new ObjectId(req.user._id),
-      };
       let groupId: {} | string = "$bookingDate";
-      // BookingDate: three cases:  no date, exact date, range
-      if (query?.bookingDate) {
-        if (query?.bookingDate.length === 2) {
-          match.bookingDate = {
-            $gt: new Date(query.bookingDate[0]),
-            $lt: new Date(query.bookingDate[1]),
-          };
-        } else if (typeof query.bookingDate === "string") {
-          match.bookingDate = new Date(query.bookingDate);
-        }
-      } else {
-        delete match.bookingDate;
-      }
-      //Account: two cases: all account, specific account
-      if (query?.accountId && query?.accountId !== "All")
-        match.accountId = new ObjectId(query.accountId.toString());
-      else delete match.accountId;
-
       //If annually then group by month
       if (req.params.interval === "Annually") {
         groupId = { $month: "$bookingDate" };
+      } else {
+        groupId = { $dayOfMonth: "$bookingDate" };
       }
-      console.log("match:", match);
+
       const transactions = await models.Transaction.aggregate([
         {
-          $match: match,
+          $match: getQuery(req.query, req.user._id),
         },
       ]).group({
         _id: groupId,

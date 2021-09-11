@@ -15,6 +15,7 @@ const accountSchema = new Schema<Account>(
     name: { type: String, default: "" },
     product: { type: String, default: "" },
     accountId: { type: String, default: "" },
+    savingRate: { type: Number, default: 0 },
     bankName: { type: String, default: "" },
     logo: { type: String, default: "" },
     aspspId: { type: String, default: "" },

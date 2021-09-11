@@ -1,10 +1,15 @@
+import { ObjectId } from "mongoose";
+
 export interface Asset {
   name: string;
-  value: string;
+  userId: ObjectId;
+  value: number;
+  type: string;
   valueDate: string;
   currency: string;
-  residualDebt: string;
+  residualDebt: number;
   residualDebtDate: string;
+  savingRate: number;
   description: string;
   note: string;
 }

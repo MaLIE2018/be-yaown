@@ -6,6 +6,7 @@ export interface Account {
   iban: string;
   currency: string;
   ownerName: string;
+  savingRate: number;
   userId: ObjectId;
   name: string;
   product: string;
