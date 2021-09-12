@@ -9,8 +9,6 @@ interface UserModel extends Model<User> {
   checkCredentials(email: string, password: string): {} | null;
 }
 
-const estimateSchema = new Schema({});
-
 const userSchema = new Schema<User, UserModel>(
   {
     name: { type: String },
@@ -22,7 +20,7 @@ const userSchema = new Schema<User, UserModel>(
     verifyToken: { type: String, default: "" },
     emailToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
-    estimates: estimateSchema,
+
     agreements: [
       new Schema<Agreement>(
         {
