@@ -1,7 +1,4 @@
 import express, { NextFunction, Request, Response } from "express";
-import UserModel from "../user/userSchema";
-import createError from "http-errors";
-import { JWTAuthenticate } from "../../lib/auth/tools";
 
 const userRouter = express.Router();
 

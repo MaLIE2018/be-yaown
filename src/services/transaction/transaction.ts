@@ -2,8 +2,6 @@ import express, { NextFunction, Request, Response } from "express";
 import createHttpError from "http-errors";
 import { Booked } from "types/bankAccount";
 import models from "../models";
-import q2m from "query-to-mongo";
-import { ObjectId } from "bson";
 import { getQuery } from "../../util/query";
 
 const transactionRouter = express.Router();

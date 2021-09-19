@@ -20,7 +20,6 @@ const userSchema = new Schema<User, UserModel>(
     verifyToken: { type: String, default: "" },
     emailToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
-
     agreements: [
       new Schema<Agreement>(
         {
@@ -62,12 +61,14 @@ userSchema.methods.toJSON = function () {
 
 userSchema.pre("save", async function () {
   const newUser = this;
-  const account = Models.Accounts.find({
-    $and: [{ cashAccountType: "cash" }, { userId: newUser.id }],
+
+  const account = await Models.Accounts.find({
+    $and: [{ cashAccountType: "cash" }, { userId: newUser._id }],
   });
-  if (!account) {
+  if (account.length === 0) {
     const cashAccount = new Models.Accounts();
     cashAccount.userId = newUser._id;
+    cashAccount.name = "Cash";
     cashAccount.cashAccountType = "cash";
     cashAccount.currency = "EUR";
     cashAccount.balances.push({
@@ -76,7 +77,8 @@ userSchema.pre("save", async function () {
       balanceType: "closingBooked",
     });
     cashAccount.bankName = "Cash";
-    cashAccount.save();
+
+    await cashAccount.save();
   }
 
   if (newUser.isModified("pw")) {
