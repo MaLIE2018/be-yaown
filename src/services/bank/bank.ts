@@ -221,6 +221,7 @@ bankRouter.post(
           `https://api.oauth.bunq.com/v1/token?grant_type=authorization_code&code=${req.body.code}&redirect_uri=${process.env.FE_URL}/wealth?status=successful-connected-with-bunq&client_id=${process.env.BUNQ_CLIENT_ID}&client_secret=${process.env.BUNQ_CLIENT_SECRET}`
         )
         .then((auth) => auth.data);
+
       req.user.agreements.push({
         access_token: auth.access_token,
         token_type: auth.token_type,
