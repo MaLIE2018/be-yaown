@@ -6,8 +6,12 @@ import { nanoid } from "nanoid";
 import { cookieOptions } from "util/cookies";
 import Models from "../models";
 import axios from "axios";
-
+import { Booked } from "types/bankAccount";
+import { models } from "mongoose";
+import { differenceInHours, toDate, differenceInSeconds } from "date-fns";
 const bankRouter = express.Router();
+
+//does bank agreement already exists
 bankRouter.get(
   "/checkBank/:aspsp_id",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -22,7 +26,7 @@ bankRouter.get(
     }
   }
 );
-
+//get bank info
 bankRouter.get(
   "/aspsps/:id",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -38,7 +42,7 @@ bankRouter.get(
     }
   }
 );
-
+//get all banks for country code
 bankRouter.get(
   "/:countrycode",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -179,9 +183,8 @@ bankRouter.post(
           //add balances to newly created account
           newAccount.balances.push(...balances.data.balances);
           await newAccount.save();
-          req.user.accounts.push(newAccount._id);
         });
-        // write into the list of accounts of the user
+        // write into the list of accounts of the user agreement
         req.user.agreements[currAgreementIndex].accounts.push(
           ...accountList.data.accounts
         );
@@ -196,6 +199,58 @@ bankRouter.post(
     }
   }
 );
+
+//get transactions
+bankRouter.get("/transactions", async (req, res, next) => {
+  try {
+    if (differenceInHours(new Date(), req.user.lastTransRefresh) > 6) {
+      res.status(429).send({ m: "Only four times a day." });
+    }
+    const requisitions = req.user.agreements.reduce(
+      (acc: string[], curr: Agreement) => {
+        acc.push(...curr.accounts);
+        return acc;
+      },
+      []
+    );
+    if (requisitions.length === 0)
+      next(createError(404, { m: "No available accounts" }));
+
+    //TODO handle pending transactions
+    const transactions = await Promise.all(
+      requisitions.map(
+        async (accountId: string) =>
+          await AIPInstance.get(`accounts/${accountId}/transactions`).then(
+            (res) => res.data.booked
+          )
+      )
+    );
+    //add others as category
+    const normalizedTransactions = transactions.map((transaction: Booked) => {
+      if (differenceInSeconds()) {
+        return {
+          ...transaction,
+          userId: req.user._id,
+          category: "other",
+          "transactionsAmount.amount": Number(
+            transaction.transactionAmount.amount
+          ),
+          bookingDate: toDate(transaction.bookingDate),
+          valueDate: toDate(transaction.valueDate),
+        };
+      }
+    });
+    //add transactions in bulk
+    await Models.Transaction.create(normalizedTransactions);
+
+    //only four times a day
+    req.user.lastTransRefresh = new Date();
+    await req.user.save();
+    res.status(200).send();
+  } catch (error) {
+    next(error);
+  }
+});
 
 //bunq
 bankRouter.get(

@@ -36,6 +36,7 @@ export interface User {
   googleId: string;
   verifyToken: string;
   emailToken: string;
+  lastTransRefresh: Date;
   estimates: {};
 
   agreements: Agreement[];
