@@ -20,7 +20,7 @@ const userSchema = new Schema<User, UserModel>(
     verifyToken: { type: String, default: "" },
     emailToken: { type: String, default: "" },
     googleId: { type: String, default: "" },
-    lastTransRefresh: { type: Date, default: new Date() },
+    lastTransRefresh: { type: Date, default: new Date(2000, 0, 1) },
     agreements: [
       new Schema<Agreement>(
         {

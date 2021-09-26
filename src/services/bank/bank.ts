@@ -8,7 +8,7 @@ import Models from "../models";
 import axios from "axios";
 import { Booked } from "types/bankAccount";
 import { models } from "mongoose";
-import { differenceInHours, toDate, differenceInSeconds } from "date-fns";
+import { differenceInHours, toDate, differenceInDays } from "date-fns";
 const bankRouter = express.Router();
 
 //does bank agreement already exists
@@ -139,11 +139,14 @@ bankRouter.post(
   }
 );
 
-// get accounts
+// get account ids from nordigen api
+// create corresponding accounts
 bankRouter.post(
   "/requisitions/accounts",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const accountMap: { id: string; accountId: string }[] = [];
+      //find agreement
       const currAgreementIndex = req.user.agreements.findIndex(
         (agreement: Agreement) => agreement.aspsp_id === req.body.aspsp_id
       );
@@ -153,12 +156,11 @@ bankRouter.post(
       ).then((requisition) => requisition);
       if (accountList) {
         // create a account for each retrieved account from the aspsp
-        accountList.data.accounts.forEach(async (accountId) => {
-          //get bank details
-          const bank = await AIPInstance.get(
-            `aspsps/${req.body.aspsp_id}`
-          ).then((bank) => bank.data);
-
+        //get bank details
+        const bank = await AIPInstance.get(`aspsps/${req.body.aspsp_id}`).then(
+          (bank) => bank.data
+        );
+        accountList.data.accounts.forEach(async (accountId: string) => {
           //get account details
           const account = await AIPInstance.get(
             `accounts/${accountId}/details/`
@@ -182,12 +184,11 @@ bankRouter.post(
           );
           //add balances to newly created account
           newAccount.balances.push(...balances.data.balances);
+          accountMap.push({ id: newAccount._id, accountId });
           await newAccount.save();
         });
         // write into the list of accounts of the user agreement
-        req.user.agreements[currAgreementIndex].accounts.push(
-          ...accountList.data.accounts
-        );
+        req.user.agreements[currAgreementIndex].accounts.push(...accountMap);
         await req.user.save();
         res.status(200).send();
       } else {
@@ -200,14 +201,16 @@ bankRouter.post(
   }
 );
 
-//get transactions
+//get transactions from bank api
+//TODO handle pending transactions
 bankRouter.get("/transactions", async (req, res, next) => {
   try {
-    if (differenceInHours(new Date(), req.user.lastTransRefresh) > 6) {
-      res.status(429).send({ m: "Only four times a day." });
+    const lastRefresh = toDate(req.user.lastTransRefresh);
+    if (differenceInHours(new Date(), lastRefresh) < 6) {
+      res.status(429).send({ m: "Only four times a day. Wait six hours" });
     }
     const requisitions = req.user.agreements.reduce(
-      (acc: string[], curr: Agreement) => {
+      (acc: { id: string; accountId: string }[], curr: Agreement) => {
         acc.push(...curr.accounts);
         return acc;
       },
@@ -216,35 +219,43 @@ bankRouter.get("/transactions", async (req, res, next) => {
     if (requisitions.length === 0)
       next(createError(404, { m: "No available accounts" }));
 
-    //TODO handle pending transactions
-    const transactions = await Promise.all(
+    const transactionSets = await Promise.all(
       requisitions.map(
-        async (accountId: string) =>
-          await AIPInstance.get(`accounts/${accountId}/transactions`).then(
-            (res) => res.data.booked
-          )
+        async (accountMap: { id: string; accountId: string }) =>
+          await AIPInstance.get(
+            `accounts/${accountMap.accountId}/transactions`
+          ).then((res) => {
+            return { id: accountMap.id, ts: res.data.booked };
+          })
       )
     );
     //add others as category
-    const normalizedTransactions = transactions.map((transaction: Booked) => {
-      if (differenceInSeconds()) {
-        return {
-          ...transaction,
-          userId: req.user._id,
-          category: "other",
-          "transactionsAmount.amount": Number(
-            transaction.transactionAmount.amount
-          ),
-          bookingDate: toDate(transaction.bookingDate),
-          valueDate: toDate(transaction.valueDate),
-        };
-      }
+    const normalizedTransactions: Booked[] = [];
+    transactionSets.forEach((transactionSet: { id: string; ts: Booked[] }) => {
+      const transactions = transactionSet.ts.map((transaction: Booked) => {
+        if (
+          differenceInDays(toDate(transaction.bookingDate), lastRefresh) > 0
+        ) {
+          return {
+            ...transaction,
+            userId: req.user._id,
+            accountId: transactionSet.id,
+            category: "other",
+            "transactionsAmount.amount": Number(
+              transaction.transactionAmount.amount
+            ),
+            bookingDate: toDate(transaction.bookingDate),
+            valueDate: toDate(transaction.valueDate),
+          };
+        }
+      });
+      normalizedTransactions.push(...transactions);
     });
     //add transactions in bulk
     await Models.Transaction.create(normalizedTransactions);
 
     //only four times a day
-    req.user.lastTransRefresh = new Date();
+    req.user.lastTransRefresh = new Date().toISOString();
     await req.user.save();
     res.status(200).send();
   } catch (error) {
@@ -267,6 +278,7 @@ bankRouter.get(
   }
 );
 
+//get Token
 bankRouter.post(
   "/auth/bunq/code",
   async (req: Request, res: Response, next: NextFunction) => {

@@ -16,7 +16,7 @@ export interface Agreement {
   max_historical_days: number;
   accepted: string | null;
   requisition: string;
-  accounts: string[];
+  accounts: { id: string; accountId: string }[];
   reference: string;
   state?: string;
   access_token?: string;
