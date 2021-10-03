@@ -11,6 +11,8 @@ import { differenceInHours, toDate, differenceInDays } from 'date-fns';
 import { sign } from '../../lib/crypto';
 import { Alias, MonetaryAccount } from 'types/bunq';
 import { validate as uuidValidate } from 'uuid';
+import { ObjectId } from 'bson';
+
 const bankRouter = express.Router();
 
 //does bank agreement already exists
@@ -166,51 +168,148 @@ bankRouter.post('/requisitions/accounts', async (req: Request, res: Response, ne
 //TODO handle pending transactions
 bankRouter.get('/transactions', async (req, res, next) => {
   try {
+    let transactionSets = [];
+    let bunqTransactionSets = [];
     const lastRefresh = toDate(req.user.lastTransRefresh);
     if (differenceInHours(new Date(), lastRefresh) < 6) {
       const rest = 6 - Number(differenceInHours(new Date(), lastRefresh));
       next(createError(429, { m: `${rest}` }));
-    }
-    const requisitions = req.user.agreements.reduce((acc: { id: string; accountId: string }[], curr: Agreement) => {
-      acc.push(...curr.accounts);
-      return acc;
-    }, []);
-    if (requisitions.length === 0) next(createError(404, { m: 'No available accounts' }));
-    // get Transactions over api
-    const transactionSets = await Promise.all(
-      requisitions.map(
-        async (accountMap: { id: string; accountId: string }) =>
-          await AIPInstance.get(`/accounts/${accountMap.accountId}/transactions`).then((res) => {
-            return { id: accountMap.id, ts: res.data.booked };
-          })
-      )
-    );
-    //add others as category
-    const normalizedTransactions: Booked[] = [];
-    transactionSets.forEach((transactionSet: { id: string; ts: Booked[] }) => {
-      const transactions = transactionSet.ts.map((transaction: Booked) => {
-        //TODO how to check that only new transactions are taken
-        if (differenceInDays(toDate(transaction.bookingDate), lastRefresh) > 0) {
-          return {
-            ...transaction,
-            userId: req.user._id,
-            accountId: transactionSet.id,
-            category: 'other',
-            'transactionsAmount.amount': Number(transaction.transactionAmount.amount),
-            bookingDate: toDate(transaction.bookingDate),
-            valueDate: toDate(transaction.valueDate),
-          };
+    } else {
+      // other then bunq accounts
+      const accounts = req.user.agreements.reduce((acc: { id: string; accountId: string }[], curr: Agreement) => {
+        if (curr.aspsp_id !== 'BUNQ_NE') acc.push(...curr.accounts);
+        return acc;
+      }, []);
+      //bunq accounts
+      const bunqAgreement = req.user.agreements.find((agreement: Agreement) => agreement.aspsp_id === 'BUNQ_NE');
+      if (accounts.length === 0 && !bunqAgreement) next(createError(404, { m: 'No available accounts' }));
+      // get Transactions over api
+      // transactionSets = await Promise.all(
+      //   accounts.map(
+      //     async (accountMap: { id: string; accountId: string }) =>
+      //       await AIPInstance.get(`/accounts/${accountMap.accountId}/transactions`).then((res) => {
+      //         return { id: accountMap.id, ts: res.data.booked };
+      //       })
+      //   )
+      // );
+      transactionSets = [{id: "6147a495c4c13315dc14effa", ts: [
+        {
+          "bankTransactionCode": "PMNT-RCDT-ESCT",
+          "bookingDate": "2021-10-03",
+          "debtorAccount": {
+            "iban": "DE72100110012629692380"
+          },
+          "debtorName": "Jacob Bachmann",
+          "remittanceInformationUnstructured": "MoneyBeam",
+          "remittanceInformationUnstructuredArray": [
+            "MoneyBeam"
+          ],
+          "transactionAmount": {
+            "amount": "0.01",
+            "currency": "EUR"
+          },
+          "transactionId": "55e990dd-83d2-3d2e-9683-27a7ed550538",
+          "valueDate": "2021-10-03"
+        },
+        {
+          "bankTransactionCode": "PMNT-ICDT-BOOK",
+          "bookingDate": "2021-10-03",
+          "creditorAccount": {
+            "iban": "DE72100110012629692380"
+          },
+          "creditorName": "jacob",
+          "remittanceInformationUnstructured": "MoneyBeam",
+          "remittanceInformationUnstructuredArray": [
+            "MoneyBeam"
+          ],
+          "transactionAmount": {
+            "amount": "-0.01",
+            "currency": "EUR"
+          },
+          "transactionId": "9f939cf4-7be8-3ebe-8b27-c66b270152ae",
+          "valueDate": "2021-10-03"
+        },
+        {
+          "bankTransactionCode": "PMNT-RCDT-ESCT",
+          "bookingDate": "2021-07-09",
+          "debtorAccount": {
+            "iban": "NL40BUNQ2038874646"
+          },
+          "debtorName": "M. Liebsch",
+          "transactionAmount": {
+            "amount": "1.2",
+            "currency": "EUR"
+          },
+          "transactionId": "643ee805-f0d8-3aa6-8b19-f2343d2efcaa",
+          "valueDate": "2021-07-09"
+        },
+        {
+          "bankTransactionCode": "PMNT-MDOP-FEES",
+          "bookingDate": "2021-07-08",
+          "creditorName": "N26",
+          "remittanceInformationUnstructured": "Overdraft / tolerated overdraft Q2-2021 N26 Bank",
+          "remittanceInformationUnstructuredArray": [
+            "Overdraft / tolerated overdraft Q2-2021 N26 Bank"
+          ],
+          "transactionAmount": {
+            "amount": "-0.02",
+            "currency": "EUR"
+          },
+          "transactionId": "b5bce73a-7e10-4600-0001-7a88163c624a",
+          "valueDate": "2021-07-08"
         }
-      });
-      normalizedTransactions.push(...transactions);
-    });
-    //add transactions in bulk
-    await Models.Transaction.create(normalizedTransactions);
+      ]}]
+      //add others as category
+      const normalizedTransactions: Booked[] = [];
+      transactionSets.forEach(async(transactionSet: { id: string; ts: Booked[] }) => {
+        const latestTransaction = await Models.Transaction.find({accountId: new ObjectId(transactionSet.id)}).sort({_id:-1}).limit(1)
+        
+        let transToAdd = [];
 
-    //only four times a day
-    req.user.lastTransRefresh = new Date().toISOString();
-    await req.user.save();
-    res.status(200).send();
+        if (latestTransaction[0]?.transactionId !== undefined) {
+          // add new trans to transToAdd
+          // const transactions = transactionSet.ts.map((transaction: Booked) => {
+          //   //TODO how to check that only new transactions are taken
+          //   if(transaction.transactionId === latestTransaction[0].transactionId)
+          //     return {
+          //       userId: req.user._id,
+          //       transactionId: transaction.transactionId,
+          //       bankTransactionCode: transaction?.bankTransactionCode ? transaction.bankTransactionCode: '',
+          //       accountId: transactionSet.id,
+          //       creditorName: transaction?.creditorName ? transaction.creditorName :"",
+          //       debtorAccount: {
+          //         iban:transaction?.debtorAccount?.iban ? transaction.debtorAccount.iban: '',
+          //         debtorName: transaction?.debtorName ? transaction.debtorName : '',
+          //         logo: ''
+          //       },
+          //       category: 'other',
+          //       remittanceInformationUnstructured: transaction.remittanceInformationUnstructured,
+          //       additionalInformation: transaction?.additionalInformation ? transaction.additionalInformation : '',
+          //       transactionAmount: {amount:Number(transaction.transactionAmount.amount),currency:transaction?.transactionAmount.currency},
+          //       bookingDate: toDate(transaction.bookingDate),
+          //       valueDate: toDate(transaction.valueDate),
+          //       type: Number(transaction.transactionAmount.amount) < 0 ? "PAYMENT":"" ,
+          //       sub_type: ''
+          //     };
+    
+          // });
+          // normalizedTransactions.push(...transactions);
+        } else {
+           // add all trans to transToAdd
+
+        }
+
+        // add transToAdd to DB
+        
+      });
+      //add transactions in bulk
+      // await Models.Transaction.create(normalizedTransactions);
+  
+      // //only four times a day
+      // req.user.lastTransRefresh = new Date().toISOString();
+      // await req.user.save();
+      // res.status(200).send();
+    }
   } catch (error) {
     next(error);
   }
@@ -358,7 +457,7 @@ bankRouter.post('/auth/bunq/code', async (req: Request, res: Response, next: Nex
             ],
             aspspId: 'BUNQ_NE',
             bankName: 'Bunq',
-            logo: 'https://res.cloudinary.com/dipmax-export/image/upload/v1633196554/yaown/bunq_ovf7dw.ico',
+            logo: process.env.BUNQ_URL + `/v1/attachment-public/${account[key].avatar.image.attachment_public_uuid}/content`,
           };
           //create new Account
           const newAccount = new Models.Accounts(newAccountObj);
