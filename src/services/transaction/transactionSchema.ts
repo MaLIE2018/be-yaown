@@ -1,5 +1,6 @@
-import mongoose from "mongoose";
-import { Booked, DebtorAccount, TransactionAmount } from "types/bankAccount";
+import mongoose from 'mongoose';
+import {  Booked, DebtorAccount, TransactionAmount } from "types/bankAccount";
+
 
 const { Schema, model } = mongoose;
 
@@ -46,4 +47,4 @@ const transactionSchema = new Schema<Booked>({
   category: { type: String, default: "" },
 });
 
-export default model("Transaction", transactionSchema);
+export default model<Booked>("Transaction", transactionSchema);

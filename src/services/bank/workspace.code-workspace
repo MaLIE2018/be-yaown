@@ -9,7 +9,9 @@
 	],
 	"settings": {
 		"cSpell.words": [
+			"counterparty",
 			"countrycode",
+			"iban",
 			"KJUR",
 			"nordigen"
 		]

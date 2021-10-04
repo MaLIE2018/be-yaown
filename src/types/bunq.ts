@@ -210,3 +210,63 @@ export interface Setting {
   restriction_chat:      string;
   sdd_expiration_action: string;
 }
+
+export interface Payment {
+  id:                               number;
+  created:                          string;
+  updated:                          string;
+  monetary_account_id:              number;
+  amount:                           Amount;
+  description:                      string;
+  type:                             string;
+  merchant_reference:               null;
+  alias:                            Alias;
+  counterparty_alias:               Alias;
+  attachment:                       any[];
+  geolocation:                      null;
+  batch_id:                         null;
+  scheduled_id:                     null;
+  address_billing:                  null;
+  address_shipping:                 null;
+  sub_type:                         string;
+  request_reference_split_the_bill: any[];
+  balance_after_mutation:           Amount;
+  payment_auto_allocate_instance:   null;
+}
+
+export interface Alias {
+  iban:         string;
+  is_light:     boolean | null;
+  display_name: string;
+  avatar:       Avatar | null;
+  label_user:   LabelUser;
+  country:      string;
+}
+
+export interface Avatar {
+  uuid:        string;
+  image:       Image[];
+  anchor_uuid: null | string;
+  style:       string;
+}
+
+export interface Image {
+  attachment_public_uuid: string;
+  height:                 number;
+  width:                  number;
+  content_type:           string;
+}
+
+export interface LabelUser {
+  uuid:             null | string;
+  display_name:     string;
+  country:          string;
+  avatar:           Avatar | null;
+  public_nick_name: string;
+  type:             null | string;
+}
+
+export interface Amount {
+  currency: string;
+  value:    string;
+}

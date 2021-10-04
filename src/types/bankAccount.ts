@@ -1,4 +1,4 @@
-import { ObjectId, Schema } from "mongoose";
+import {  Types } from 'mongoose';
 
 export interface Account {
   resourceId: string;
@@ -7,7 +7,7 @@ export interface Account {
   currency: string;
   ownerName: string;
   savingRate: number;
-  userId: ObjectId;
+  userId: Types.ObjectId;
   name: string;
   product: string;
   accountId: string;
@@ -37,14 +37,32 @@ export interface Booked {
   debtorName?:string;
   creditorName:string;
   bookingDate: Date;
-  valueDate: Date;
+  valueDate:Date;
   remittanceInformationUnstructured: string;
   additionalInformation: string,
   type: string,
   sub_type: string,
   category: string;
-  userId: Schema.Types.ObjectId;
-  accountId:Schema.Types.ObjectId;
+  userId: Types.ObjectId;
+  accountId: Types.ObjectId;
+}
+
+export interface normalizedBooked {
+  transactionId: string;
+  debtorAccount?: DebtorAccount;
+  transactionAmount: TransactionAmount;
+  bankTransactionCode: string;
+  debtorName?:string;
+  creditorName:string;
+  bookingDate: string;
+  valueDate:string;
+  remittanceInformationUnstructured: string;
+  additionalInformation: string,
+  type: string,
+  sub_type: string,
+  category: string;
+  userId: Types.ObjectId;
+  accountId: Types.ObjectId;
 }
 
 export interface Pending {
