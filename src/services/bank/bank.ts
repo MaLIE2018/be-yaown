@@ -270,46 +270,29 @@ bankRouter.get('/transactions', async (req, res, next) => {
         .then(async (results: normalizedBooked[]) => {
           await Models.Transaction.create(results);
         });
+        // bunq
+        if(bunqAgreement) {
+          bunqAgreement.accounts.reduce(async (acc:normalizedBooked[], accountSet: { id: string; accountId: string }) => {
+            const results = await acc
+            const latestTransaction = await Models.Transaction.find({ accountId: accountSet.id }).sort({ _id: 1 }).limit(1);
+            const inter = await fetchAllTransactions(
+                `/v1/user/${bunqAgreement.bunqUserId}/monetary-account/${accountSet.accountId}/payment?count=200`,
+                bunqAgreement.access_token,
+                latestTransaction[0]?.transactionId,
+                req.user._id,
+                accountSet.accountId,
+                accountSet.id
+              )
+              return [...results, ...inter]
+          }, []).then(async (results: normalizedBooked[]) => {
+            await Models.Transaction.create(results);
+          });
+        }
+        //only four times a day
+        req.user.lastTransRefresh = new Date().toISOString();
+        await req.user.save();
     }
-    // bunq
-
-    //only four times a day
-    req.user.lastTransRefresh = new Date().toISOString();
-    await req.user.save();
     res.status(200).send();
-  } catch (error) {
-    next(error);
-  }
-});
-
-//get BunqTransactions
-bankRouter.get('/transactionsbunq', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    //bunq accountsss
-    const bunqAgreement = req.user.agreements.find((agreement: Agreement) => agreement.aspsp_id === 'BUNQ_NE');
-    if(bunqAgreement) {
-      console.log('bunqAgreement:', bunqAgreement)
-      await Promise.all(bunqAgreement.accounts.reduce(async (acc:normalizedBooked[], accountSet: { id: string; accountId: string }) => {
-        const latestTransaction = await Models.Transaction.find({ accountId: accountSet.id }).sort({ _id: 1 }).limit(1);
-        let results = []
-        results = await acc
-        await fetchAllTransactions(
-            `/v1/user/1107664/monetary-account/1490065/payment?count=200`,
-            bunqAgreement.access_token,
-            results,
-            latestTransaction[0]?.transactionId,
-            req.user._id,
-            accountSet.accountId,
-            accountSet.id
-          ); 
-        return await results
-      }, [])).then(async (data) => {
-        await Models.Transaction.create(data);
-      })
-      res.status(200).send()
-    }else {
-     next(createError(404, { m: 'No available accounts' }));
-    }
   } catch (error) {
     next(error);
   }

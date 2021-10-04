@@ -28,7 +28,6 @@ export const BUNQInstance = axios.create({
 export const fetchAllTransactions = async (
   url: string,
   session_token: string,
-  results:any,
   latestTransactionId: string,
   userId: string,
   accountId: string,
@@ -36,6 +35,7 @@ export const fetchAllTransactions = async (
 ) => {
   try {
     let next: boolean = true;
+    let results = []
     const res = await BUNQInstance.get(url, { headers: { 'X-Bunq-Client-Authentication': session_token } }).then(
       (res) => res.data
     );
@@ -82,38 +82,33 @@ export const fetchAllTransactions = async (
       });
     } else {
       let i = 0;
-      while (res.Response[i].Payment.id !== latestTransactionId) {
-        if (res.Response.length === i + 1) {
-          next = true;
-        } else {
-          next = false;
-        }
+      while (res.Response[i].Payment.id !== Number(latestTransactionId)) {
         const transaction = {
           userId: userId,
           transactionId: res.Response[i].Payment.id,
           bankTransactionCode: '',
           accountId: dbAccountId,
           creditorName:
-            res.Response[i].Payment?.amount.value && Number(res.Response[i].Payment.amount?.value) > 0
-              ? res.Response[i].Payment.alias?.display_name
-              : res.Response[i].Payment.counterparty_alias?.display_name,
+          res.Response[i].Payment?.amount.value && Number(res.Response[i].Payment.amount?.value) > 0
+          ? res.Response[i].Payment.alias?.display_name
+          : res.Response[i].Payment.counterparty_alias?.display_name,
           debtorAccount: {
             iban:
-              res.Response[i].Payment?.amount.value && Number(res.Response[i].Payment.amount?.value) < 0
-                ? res.Response[i].Payment.alias.iban
-                : res.Response[i].Payment.counterparty_alias.iban,
+            res.Response[i].Payment?.amount.value && Number(res.Response[i].Payment.amount?.value) < 0
+            ? res.Response[i].Payment.alias.iban
+            : res.Response[i].Payment.counterparty_alias.iban,
             debtorName:
               res.Response[i].Payment?.amount.value && Number(res.Response[i].Payment.amount?.value) < 0
-                ? res.Response[i].Payment.alias?.display_name
-                : res.Response[i].Payment.counterparty_alias?.display_name,
-            logo:
+              ? res.Response[i].Payment.alias?.display_name
+              : res.Response[i].Payment.counterparty_alias?.display_name,
+              logo:
               res.Response[i].Payment?.amount.value && Number(res.Response[i].Payment.amount.value) < 0
-                ? res.Response[i].Payment.alias.avatar !== null
+              ? res.Response[i].Payment.alias.avatar !== null
                   ? `https://api.bunq.com/v1/attachment-public/${res.Response[i].Payment.alias.avatar.image[0].attachment_public_uuid}/content`
                   : ''
-                : '',
-          },
-          category: 'other',
+                  : '',
+                },
+                category: 'other',
           remittanceInformationUnstructured: res.Response[i].Payment?.description,
           additionalInformation: '',
           transactionAmount: {
@@ -128,17 +123,23 @@ export const fetchAllTransactions = async (
         results.push(transaction);
         i++;
       }
+      if (i === res.Response.length -1) {
+        next = true;
+      } else {
+        next = false;
+      }
     }
     if (next && res.Pagination.older_url !== null) {
-      await fetchAllTransactions(
+     return  results.concat(await fetchAllTransactions(
         res.Pagination.older_url,
         session_token,
-        results,
         latestTransactionId,
         userId,
         accountId,
         dbAccountId
-      );
+      ))
+    }else{
+      return results
     }
     
   } catch (error) {
