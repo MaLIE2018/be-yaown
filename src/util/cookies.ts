@@ -1,9 +1,6 @@
 import { CookieOptions } from "express";
 
-export const cookieOptions: CookieOptions =
-  process.env.NODE_ENV === "development"
-    ? { httpOnly: false }
-    : {
+export const cookieOptions: CookieOptions = {
         httpOnly: false,
         sameSite: "none",
         secure: true,
