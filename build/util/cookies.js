@@ -4,6 +4,7 @@ exports.cookieOptions = void 0;
 exports.cookieOptions = process.env.TS_NODE_DEV === 'true'
     ? { httpOnly: false }
     : {
+        domain: "vercel.app",
         httpOnly: false,
         sameSite: "none",
         secure: true,
