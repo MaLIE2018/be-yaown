@@ -1,0 +1,23 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const authMiddleware_1 = require("../lib/auth/authMiddleware");
+const account_1 = __importDefault(require("./account/account"));
+const auth_1 = __importDefault(require("./auth/auth"));
+const bank_1 = __importDefault(require("./bank/bank"));
+const user_1 = __importDefault(require("./user/user"));
+const verify_1 = __importDefault(require("./verify/verify"));
+const transaction_1 = __importDefault(require("./transaction/transaction"));
+const asset_1 = __importDefault(require("./asset/asset"));
+const route = express_1.default.Router();
+route.use("/user", authMiddleware_1.JWTMiddleWare, user_1.default);
+route.use("/bank", authMiddleware_1.JWTMiddleWare, bank_1.default);
+route.use("/asset", authMiddleware_1.JWTMiddleWare, asset_1.default);
+route.use("/account", authMiddleware_1.JWTMiddleWare, account_1.default);
+route.use("/transaction", authMiddleware_1.JWTMiddleWare, transaction_1.default);
+route.use("/auth", auth_1.default);
+route.use("/verify-email", verify_1.default);
+exports.default = route;
