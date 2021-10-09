@@ -20,9 +20,10 @@ const corsOptions = {
       next(createHttpError(403, { m: "Check your cors settings!" }));
     }
   },
+  
   credentials: true,
 };
-
+console.log(process.env)
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
@@ -32,7 +33,7 @@ app.use(errorHandlers);
 
 if (!process.env.MDB_URL) throw new Error("MDB_URL not set!");
 
-if (process.env.NODE_ENV !== "test") {
+if (process.env._ENV !== "test") {
   mongoose.connect(process.env.MDB_URL, {}).then(() => {
     console.log("mongoose connected");
     app.listen(PORT, () => {

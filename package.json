@@ -6,7 +6,7 @@
     "scripts": {
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watchAll",
         "dev": "ts-node-dev -r dotenv/config ./src",
-        "start": "node ./build",
+        "start": "tsc && node ./build",
         "build": "tsc"
     },
     "keywords": [],
