@@ -4,7 +4,7 @@ export const cookieOptions: CookieOptions =
   process.env.TS_NODE_DEV === 'true'
     ? { httpOnly: false }
     : {
-        domain: "vercel.app",
+        domain: "herokuapp.com",
         httpOnly: false,
         sameSite: "none",
         secure: true,
