@@ -25,7 +25,6 @@ const corsOptions = {
     },
     credentials: true,
 };
-console.log(process.env);
 app.use(cors_1.default(corsOptions));
 app.use(express_1.default.json());
 app.use(cookie_parser_1.default());

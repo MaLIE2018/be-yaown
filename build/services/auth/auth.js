@@ -32,6 +32,7 @@ authRouter.post("/register", async (req, res, next) => {
             newUser.emailToken = emailToken;
             await newUser.save();
             res.cookie("csrfltoken", token, cookies_1.cookieOptions);
+            console.log('cookieOptions:', cookies_1.cookieOptions);
             res.status(200).send();
             await email_1.sendVerifyLink(emailToken, email);
         }

@@ -63,10 +63,10 @@ userSchema.methods.toJSON = function () {
 userSchema.pre('save', async function () {
   const newUser = this;
 
-  const account = await Models.Accounts.find({
+  const accounts = await Models.Accounts.find({
     $and: [{ cashAccountType: 'cash' }, { userId: newUser._id }],
   });
-  if (account.length === 0) {
+  if (accounts.length === 0) {
     const cashAccount = new Models.Accounts();
     cashAccount.userId = newUser._id;
     cashAccount.name = 'Cash';
