@@ -12,6 +12,8 @@ const origins = [process.env.FE_URL];
 
 export const PORT = process.env.PORT || 3001;
 
+console.log(process.env.TS_NODE_DEV)
+
 const corsOptions = {
   origin: function (origin: any, next: any) {
     if (origins.includes(origin)) {

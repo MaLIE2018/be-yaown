@@ -14,6 +14,7 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const app = express_1.default();
 const origins = [process.env.FE_URL];
 exports.PORT = process.env.PORT || 3001;
+console.log(process.env.TS_NODE_DEV);
 const corsOptions = {
     origin: function (origin, next) {
         if (origins.includes(origin)) {
